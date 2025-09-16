@@ -1,9 +1,10 @@
-import { StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
+import CustomInput from '../components/CustomInput';
 
 const HomeScreen = () => {
   return (
     <View style={styles.container}>
-      <Text>Hello im the home</Text>
+      <CustomInput />
     </View>
   );
 };
