@@ -1,92 +1,166 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import {
   Keyboard,
+  Pressable,
   StyleSheet,
   Text,
   TextInput,
   TouchableWithoutFeedback,
   View,
 } from 'react-native';
+import Animated, {
+  FadeIn,
+  FadeInUp,
+  FadeOut,
+  FadeOutUp,
+  useAnimatedStyle,
+  useSharedValue,
+  withTiming,
+} from 'react-native-reanimated';
 // @ts-ignore
 import XIcon from '../assets/xIcon.svg';
 
-const CustomInput = () => {
-  // const [xBtn, setXBtn] = useState(false);
-  const [isFocus, setIsFocus] = useState(false);
-  const [email, setEmail] = useState('');
-  const [emailError, setEmailError] = useState(false);
-
-  const checkEmail = (value: string) => {
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (emailRegex.test(value)) {
-      setEmailError(false);
-    } else {
-      setEmailError(true);
-    }
-  };
-
-  return (
-    <TouchableWithoutFeedback onPress={Keyboard.dismiss} accessible={false}>
-      <View style={styles.container}>
-        <View
-          style={[
-            styles.inputContainer,
-            isFocus
-              ? emailError
-                ? styles.inputContainerError
-                : styles.inputContainerFocus
-              : '',
-          ]}
-        >
-          <TextInput
-            style={[
-              styles.input,
-              isFocus
-                ? emailError
-                  ? styles.inputError
-                  : styles.inputFocus
-                : '',
-            ]}
-            placeholderTextColor={'rgba(255, 255, 255, 0.3)'}
-            placeholder={isFocus ? '' : 'Escribe tu correo electrónico'}
-            onFocus={() => setIsFocus(true)}
-            onBlur={() => setIsFocus(false)}
-            value={email}
-            onChangeText={value => {
-              setEmail(value);
-              checkEmail(value);
-            }}
-          />
-          {isFocus && (
-            <View style={styles.xBtn}>
-              <Text style={styles.xBtnText}>
-                <XIcon />
-              </Text>
-            </View>
-          )}
-          {isFocus && (
-            <View style={styles.focusTittle}>
-              <Text
-                style={[
-                  styles.focusTittleText,
-                  emailError && styles.focusTittleTextError,
-                ]}
-              >
-                Correo electrónico
-              </Text>
-            </View>
-          )}
-        </View>
-      </View>
-    </TouchableWithoutFeedback>
-  );
-};
-
+// To-do: this need moving to the correct file
 const colors = {
   primary: 'rgba(120, 113, 255, 1)',
   primaryBlur: 'rgba(125, 119, 255, 0.2)',
   error: 'rgba(180, 75, 75, 1)',
   errorBlur: 'rgba(180, 75, 75, 0.1)',
+  transparent: 'transparent',
+  bg: '#141534',
+};
+
+const AnimatedTextInput = Animated.createAnimatedComponent(TextInput);
+const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
+
+const CustomInput = () => {
+  const [isFocus, setIsFocus] = useState(false);
+  const [email, setEmail] = useState('');
+  const emailErrorRef = useRef(false);
+
+  const bgColor = useSharedValue(colors.transparent);
+  const inputBgColor = useSharedValue(colors.bg);
+  const inputBorderColor = useSharedValue(colors.transparent);
+  const inputFontColor = useSharedValue('white');
+  const inputPaddingTop = useSharedValue(10);
+
+  const animatedStyle = useAnimatedStyle(() => ({
+    backgroundColor: bgColor.value,
+  }));
+  const animatedInputStyle = useAnimatedStyle(() => ({
+    backgroundColor: inputBgColor.value,
+    borderColor: inputBorderColor.value,
+    color: inputFontColor.value,
+    paddingTop: inputPaddingTop.value,
+    borderWidth: 2,
+    paddingLeft: 25,
+  }));
+
+  const checkEmail = (value: string) => {
+    if (value === '') {
+      emailErrorRef.current = false;
+    } else {
+      emailErrorRef.current = !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
+    }
+  };
+
+  // To-do: This need a enhance
+  const updateState = () => {
+    let bgTarget = colors.transparent;
+    let inputBgTarget = colors.bg;
+    let borderTarget = colors.transparent;
+    let fontTarget = 'white';
+    let paddingTopTarget = 0;
+
+    if (isFocus && emailErrorRef.current) {
+      bgTarget = colors.errorBlur;
+      inputBgTarget = colors.transparent;
+      borderTarget = colors.error;
+      fontTarget = colors.error;
+      paddingTopTarget = 20;
+    } else if (isFocus) {
+      bgTarget = colors.primaryBlur;
+      inputBgTarget = colors.bg;
+      borderTarget = colors.primary;
+      fontTarget = 'white';
+      paddingTopTarget = 20;
+    } else {
+      bgTarget = colors.transparent;
+      inputBgTarget = colors.bg;
+      borderTarget = colors.transparent;
+      fontTarget = 'white';
+      paddingTopTarget = 10;
+    }
+
+    bgColor.value = withTiming(bgTarget, { duration: 300 });
+    inputBgColor.value = withTiming(inputBgTarget, { duration: 300 });
+    inputBorderColor.value = withTiming(borderTarget, { duration: 300 });
+    inputFontColor.value = withTiming(fontTarget, { duration: 300 });
+    inputPaddingTop.value = withTiming(paddingTopTarget, { duration: 300 });
+  };
+  const handleFocus = () => {
+    setIsFocus(true);
+  };
+
+  const handleBlur = () => {
+    setIsFocus(false);
+  };
+
+  const handleChange = (value: string) => {
+    setEmail(value);
+    checkEmail(value);
+  };
+
+  useEffect(() => {
+    updateState();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isFocus, email]);
+
+  return (
+    <TouchableWithoutFeedback onPress={Keyboard.dismiss} accessible={false}>
+      <View style={styles.container}>
+        <Animated.View style={[styles.inputContainer, animatedStyle]}>
+          <AnimatedTextInput
+            style={[styles.input, animatedInputStyle]}
+            placeholderTextColor={'rgba(255, 255, 255, 0.3)'}
+            placeholder={isFocus ? '' : 'Escribe tu correo electrónico'}
+            onFocus={handleFocus}
+            onBlur={handleBlur}
+            value={email}
+            onChangeText={handleChange}
+          />
+          {isFocus && (
+            <AnimatedPressable
+              style={styles.xBtn}
+              entering={FadeIn.duration(200)}
+              exiting={FadeOut.duration(200)}
+              onPress={() => handleChange('')}
+            >
+              <Text style={styles.xBtnText}>
+                <XIcon />
+              </Text>
+            </AnimatedPressable>
+          )}
+          {isFocus && (
+            <Animated.View
+              style={styles.focusTittle}
+              entering={FadeInUp.duration(300)}
+              exiting={FadeOutUp.duration(300)}
+            >
+              <Text
+                style={[
+                  styles.focusTittleText,
+                  emailErrorRef.current && styles.focusTittleTextError,
+                ]}
+              >
+                Correo electrónico
+              </Text>
+            </Animated.View>
+          )}
+        </Animated.View>
+      </View>
+    </TouchableWithoutFeedback>
+  );
 };
 
 const styles = StyleSheet.create({
@@ -103,36 +177,16 @@ const styles = StyleSheet.create({
     borderRadius: 20,
     backgroundColor: 'transparent',
   },
-  inputContainerFocus: {
-    borderRadius: 20,
-    backgroundColor: colors.primaryBlur,
-  },
-  inputContainerError: {
-    borderRadius: 20,
-    backgroundColor: colors.errorBlur,
-  },
+
   input: {
     width: '100%',
     height: 60,
-    backgroundColor: '#141534',
     color: '#FFFFFF',
     borderWidth: 1,
-    paddingLeft: 25,
     borderRadius: 15,
     fontSize: 18,
   },
-  inputFocus: {
-    paddingTop: 20,
-    borderWidth: 2,
-    borderColor: colors.primary,
-  },
-  inputError: {
-    paddingTop: 20,
-    borderWidth: 2,
-    borderColor: colors.error,
-    backgroundColor: colors.errorBlur,
-    color: colors.error,
-  },
+
   xBtn: {
     position: 'absolute',
     right: 30,
